@@ -2,6 +2,7 @@
 import logging  # Python 内置日志库
 import os       # 用于路径操作
 from config import config_manager  # 全局配置管理器
+from common import *
 
 # ---------------- 获取项目路径 ----------------
 current_file_path = os.path.abspath(__file__)           # 当前文件绝对路径
@@ -10,7 +11,7 @@ project_root = os.path.dirname(current_dir_path)        # 项目根目录
 
 # 从配置中获取日志文件路径（相对于项目根目录）
 log_file_path = None
-logger_file = config_manager.get("server.logger.file")
+logger_file = config_manager.get(SERVER_LOGGER_FILE)
 if logger_file:
     log_file_path = os.path.join(project_root, logger_file)
 
