@@ -54,6 +54,7 @@ class ChatSessionDAO(BaseDAO):
             ) # not
 
             logger.debug("ChatSession 创建成功，session_id=%s", chat_session.session_id)
+            logger.info("聊天会话创建成功")
             return session_vo
 
         return self._execute(_create)
@@ -71,6 +72,7 @@ class ChatSessionDAO(BaseDAO):
         """
         examples = config_manager.get(f"ai.{agent_id}.session.examples", [])
         selected_examples = random.sample(examples, min(num, len(examples)))
+        logger.info("获取随机示例成功")
         return [
             Example(title=e.get("title"), describe=e.get("describe"))
 
