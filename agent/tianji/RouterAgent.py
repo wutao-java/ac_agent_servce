@@ -76,12 +76,12 @@ class RouterAgent(BaseAgent):
 
         self.graph = builder.compile()
 
-        try:
-            mermaid = self.graph.get_graph().draw_mermaid_png()
-            self.GRAPH_PNG_DIR.mkdir(parents=True, exist_ok=True)
-            (self.GRAPH_PNG_DIR / "router.jpg").write_bytes(mermaid)
-        except Exception as e:
-            print(e)
+        # try:
+        #     mermaid = self.graph.get_graph().draw_mermaid_png()
+        #     self.GRAPH_PNG_DIR.mkdir(parents=True, exist_ok=True)
+        #     (self.GRAPH_PNG_DIR / "router.jpg").write_bytes(mermaid)
+        # except Exception as e:
+        #     print(e)
 
 
 
@@ -92,7 +92,7 @@ class RouterAgent(BaseAgent):
             # 构建 Graph 执行上下文
             config = RunnableConfig(configurable={
                 "thread_id": session_id,
-                "user_token": user_token,  # 将自定义参数传递给子智能体
+                "user_token": user_token, # 将自定义参数传递给子智能体
                 "request_id": request_id  # 将自定义参数传递给子智能体
             })
 
@@ -103,12 +103,19 @@ class RouterAgent(BaseAgent):
             res = self.graph.astream(
                 input=inputs,
                 config=config,
-                subgraphs=True,  # 需要得到子图的输出
+                subgraphs=True, # 需要得到子图的输出
                 stream_mode="messages",
             )
 
             try:
                 async for node_info, (message, metadata) in res:
+                    # 获取消息 tags（例如 IntentAgent）
+                    tags = metadata.get("tags", [])
+
+                    # 主动跳过 IntentAgent 阶段输出
+                    if "IntentAgent" in tags:
+                        continue
+
                     # 提取 message 内容
                     content = getattr(message, "content", None)
                     if not content:
@@ -124,7 +131,7 @@ class RouterAgent(BaseAgent):
             logger.exception("RouterAgent error")
             yield make_sse_event(2001, str(e))
 
-            # SSE 最终停止事件（前端用于关闭流）
+        # SSE 最终停止事件（前端用于关闭流）
         yield format_sse_data(STOP_EVENT)
 
     def id(self) -> int:
