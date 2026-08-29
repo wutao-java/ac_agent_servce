@@ -1,11 +1,10 @@
-from typing import TypedDict
+from langgraph.graph import MessagesState
 
 
-class RouteState(TypedDict, total=False):
+class RouteState(MessagesState):
     """
     天机路由状态。
 
     具体状态字段由路由图实现时补充。
     """
-
-    pass
+    intent: str

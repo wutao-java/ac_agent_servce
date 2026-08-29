@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from starlette.responses import PlainTextResponse
-from web.router import auth_router,session_router
+from web.router import auth_router, session_router,chat_router
+from agent.Agents import AGENTS
 
 # ========================= 创建 FastAPI 实例 =========================
 app = FastAPI(
@@ -22,5 +23,37 @@ def system_exception_handler(req: Request, exc: Exception):
 
 # 添加全局异常处理器
 app.add_exception_handler(Exception, system_exception_handler)
+
+
+# ========================= 启动事件 =========================
+async def startup():
+    """
+    启动 web 服务时执行：
+    - 初始化所有 Agent
+    """
+    # 初始化所有 Agent
+    for agent in AGENTS.values():
+        await agent.init()
+
+
+# ========================= 关闭事件 =========================
+async def shutdown():
+    """
+    停止 web 服务时执行：
+    - 销毁所有 Agent
+    """
+
+    # 销毁所有 Agent
+    for agent in AGENTS.values():
+        await agent.destroy()
+
+
+# ========================= 事件注册 =========================
+# 启动事件：初始化数据库、Agents、注册服务
+app.add_event_handler("startup", startup)
+# 关闭事件：关闭资源、注销服务
+app.add_event_handler("shutdown", shutdown)
+
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(session_router, prefix="/session", tags=["session"])
+app.include_router(chat_router, prefix="/chat", tags=["chat"])
