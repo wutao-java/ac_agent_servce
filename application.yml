@@ -64,3 +64,9 @@ ai:
           describe: " 装饰器的作用是什么？"
         - title: "知识讲解"
           describe: "多线程为什么有GIL限制？"
+  openai:
+    model: qwen3.8-max
+    api-key: sk-1135f56398554f93a76fd1ec22b18ace
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    temperature: 0.8
+    timeout: 30
