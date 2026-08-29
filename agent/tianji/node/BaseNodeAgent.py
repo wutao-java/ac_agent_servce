@@ -130,16 +130,14 @@ class BaseNodeAgent(ABC):
             new_messages.append(system_msg)
 
         configurable = config.get("configurable", {})
-        user_token = configurable.get("user_token", "")
-        request_id = configurable.get("request_id", "")
+        tool_context = configurable.get("tool_context")
+        if not isinstance(tool_context, ToolContext):
+            tool_context = ToolContext(user_token="", request_id="")
 
         # 调用智能体执行推理
         res = await self.agent.ainvoke(
             input={"messages": new_messages},
-            context=ToolContext(
-                user_token=user_token,
-                request_id=request_id
-            )
+            context=tool_context,
         )
 
         # 从结果中移除系统提示词（不需要存储）
