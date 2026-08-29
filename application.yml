@@ -70,3 +70,9 @@ ai:
     base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
     temperature: 0.8
     timeout: 30
+  agent:
+    checkpointer:
+      postgres:
+        min: 5 # 最小连接数
+        max: 10 # 最大连接数
+        url: "postgresql://postgres:itheima123@192.168.150.101:5432/postgres?sslmode=disable"

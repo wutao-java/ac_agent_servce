@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from starlette.responses import PlainTextResponse
 from web.router import auth_router, session_router,chat_router
 from agent.Agents import AGENTS
+from config import get_async_pg_pool, close_async_pg_pool
 
 # ========================= 创建 FastAPI 实例 =========================
 app = FastAPI(
@@ -31,6 +32,9 @@ async def startup():
     启动 web 服务时执行：
     - 初始化所有 Agent
     """
+
+    await close_async_pg_pool()
+
     # 初始化所有 Agent
     for agent in AGENTS.values():
         await agent.init()
@@ -42,6 +46,7 @@ async def shutdown():
     停止 web 服务时执行：
     - 销毁所有 Agent
     """
+    await close_async_pg_pool()
 
     # 销毁所有 Agent
     for agent in AGENTS.values():
