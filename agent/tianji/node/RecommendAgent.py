@@ -1,4 +1,4 @@
-from agent.tianji.nodes.BaseNodeAgent import BaseNodeAgent
+from agent.tianji.node.BaseNodeAgent import BaseNodeAgent
 
 
 class RecommendAgent(BaseNodeAgent):
