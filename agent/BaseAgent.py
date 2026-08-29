@@ -1,11 +1,17 @@
 from abc import ABC, abstractmethod
 from typing import AsyncIterable, Any
 
+from config import redis_config
 from util import JsonUtil
 
 # ------------------ 常量 ------------------
 
 STOP_EVENT = {"eventType": 1002}   # 标准 SSE 停止事件结构，用于前端识别结束信号
+STOP_FLAG_TTL = 120
+
+# ------------------ Redis 客户端 ------------------
+
+redis = redis_config.get_instance()
 
 
 # ------------------ SSE 格式化工具方法 ------------------
@@ -99,3 +105,21 @@ class BaseAgent(ABC):
         在服务退出或 Agent 卸载时触发。
         """
         pass
+
+    # ------------------ 停止标记管理 ------------------
+
+    def stop(self, session_id: str):
+        """标记指定会话停止输出。"""
+        redis.setex(self.get_flags_key(session_id), STOP_FLAG_TTL, "1")
+
+    def get_flags_key(self, session_id: str) -> str:
+        """构建当前智能体的会话停止标记 key。"""
+        return f"AGENT_CENTER_STOP_FLAGS:{self.id()}:{session_id}"
+
+    def reset_stop(self, session_id: str):
+        """清除指定会话的停止标记。"""
+        redis.delete(self.get_flags_key(session_id))
+
+    def is_stop(self, session_id: str) -> bool:
+        """判断指定会话是否已被标记为停止。"""
+        return bool(redis.exists(self.get_flags_key(session_id)))

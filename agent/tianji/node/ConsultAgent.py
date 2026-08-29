@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from agent.tianji.node.BaseNodeAgent import BaseNodeAgent
+from agent.tianji.tools import query_course_by_id
 
 
 class ConsultAgent(BaseNodeAgent):
@@ -32,3 +33,6 @@ class ConsultAgent(BaseNodeAgent):
 
     def system_prompt_params(self):
         return {"now": datetime.now()}
+
+    def tools(self):
+        return [query_course_by_id]

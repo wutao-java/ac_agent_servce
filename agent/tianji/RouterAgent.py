@@ -3,7 +3,7 @@ from typing import AsyncIterable, Optional
 import asyncio
 import uuid
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
@@ -14,9 +14,12 @@ from agent.BaseAgent import BaseAgent, STOP_EVENT, format_sse_data, make_sse_eve
 from agent.tianji.RouteState import RouteState
 from agent.tianji.node import IntentAgent, RecommendAgent, BuyAgent, ConsultAgent, UnknownAgent, KnowledgeAgent
 from agent.tianji.node.BaseNodeAgent import ToolContext
+from agent.tianji.tools.result import CourseInfo, PrePlaceOrder
 from common import INTENT_TO_AGENT
 from config import logger
 from config.ConnectionPool import get_async_pg_pool
+from dao import chat_session_dao
+from util import JsonUtil
 
 
 class RouterAgent(BaseAgent):
@@ -116,9 +119,35 @@ class RouterAgent(BaseAgent):
         logger.warning("【IntentAgent】无法识别意图输出：%r，回退到 UNKNOWN", raw_intent)
         return "UNKNOWN"
 
+    @staticmethod
+    def _parse_tool_result(message: ToolMessage) -> dict:
+        """将工具消息转换为前端卡片参数。"""
+        if getattr(message, "status", "success") != "success":
+            return {}
+        if not message.content:
+            return {}
+
+        try:
+            if message.name == "query_course_by_id":
+                course_info = JsonUtil.to_obj(message.content, CourseInfo)
+                if course_info.id is None:
+                    return {}
+                return {f"courseInfo_{course_info.id}": course_info}
+
+            if message.name == "pre_place_order":
+                order = JsonUtil.to_obj(message.content, PrePlaceOrder)
+                return {"prePlaceOrder": order}
+        except Exception:
+            logger.exception("解析工具结果失败，tool=%s", message.name)
+
+        return {}
+
     async def execute(self, question: str, session_id: str, user_token: str) -> AsyncIterable[str]:
         try:
             request_id = uuid.uuid4().hex
+
+            self.reset_stop(session_id)
+            chat_session_dao.update_title(session_id, self.id(), question)
 
             # 构建 Graph 执行上下文
             config = RunnableConfig(configurable={
@@ -141,13 +170,23 @@ class RouterAgent(BaseAgent):
                 stream_mode="messages",
             )
 
+            tool_result = {}
+
             try:
                 async for node_info, (message, metadata) in res:
+                    if self.is_stop(session_id):
+                        await res.aclose()
+                        break
+
                     # 获取消息 tags（例如 IntentAgent）
                     tags = metadata.get("tags", [])
 
                     # 主动跳过 IntentAgent 阶段输出
                     if "IntentAgent" in tags:
+                        continue
+
+                    if isinstance(message, ToolMessage):
+                        tool_result.update(self._parse_tool_result(message))
                         continue
 
                     # 提取 message 内容
@@ -160,6 +199,9 @@ class RouterAgent(BaseAgent):
                 # 客户端中断，也需要安全关闭流
                 await res.aclose()
                 raise
+
+            if tool_result:
+                yield make_sse_event(1003, tool_result)
 
         except Exception as e:
             logger.exception("RouterAgent error")
@@ -183,10 +225,15 @@ class RouterAgent(BaseAgent):
         messages = state_snapshot.values.get("messages", [])
 
         result = []
+        pending_params = {}
 
         for message in messages:
             msg_type = ""
             content = message.content
+
+            if isinstance(message, ToolMessage):
+                pending_params.update(self._parse_tool_result(message))
+                continue
 
             # 用户消息
             if isinstance(message, HumanMessage):
@@ -198,7 +245,14 @@ class RouterAgent(BaseAgent):
 
             # 将有效消息加入结果结构
             if msg_type and content:
-                result.append({"type": msg_type, "content": content, "params": {}})
+                params = pending_params if msg_type == "ASSISTANT" else {}
+                result.append({
+                    "type": msg_type,
+                    "content": content,
+                    "params": params.copy(),
+                })
+                if msg_type == "ASSISTANT":
+                    pending_params.clear()
 
         return result
 

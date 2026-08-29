@@ -1,12 +1,34 @@
 import random
 import uuid
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import date, datetime
 
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import scoped_session
 
 from config import config_manager, get_id, logger
 from dao.BaseDAO import BaseDAO
 from dao.pojo import ChatSession
 from dao.vo.SessionVO import Example, SessionVO
+
+
+@dataclass
+class ChatSessionVO:
+    """历史会话展示对象。"""
+
+    session_id: str
+    title: str
+    update_time: datetime
+
+
+TODAY = "当天"
+LAST_30_DAYS = "最近30天"
+LAST_YEAR = "最近1年"
+MORE_THAN_YEAR = "1年以上"
+
+SUCCESS_MESSAGE = {"status": "ok"}
+NO_CHANGE_MESSAGE = {"status": "ok", "message": "No change"}
 
 
 class ChatSessionDAO(BaseDAO):
@@ -78,6 +100,117 @@ class ChatSessionDAO(BaseDAO):
 
             for e in selected_examples
         ]
+
+    def update_title(self, session_id: str, agent_id: int, title: str):
+        """首次提问时设置标题，并刷新会话更新时间。"""
+
+        def _update(session: scoped_session):
+            stmt = (
+                select(ChatSession)
+                .where(ChatSession.session_id == session_id)  # type: ignore
+                .where(ChatSession.agent_id == agent_id)
+            )
+            chat_session = session.execute(stmt).scalars().first()
+            if chat_session is None:
+                return NO_CHANGE_MESSAGE
+
+            if not chat_session.title and title:
+                chat_session.title = title[:100]
+
+            chat_session.update_time = datetime.now()
+            return SUCCESS_MESSAGE
+
+        return self._execute(_update)
+
+    def query_history_session(self, agent_id: int, user_id: int):
+        """查询最近 30 条历史会话，并按更新时间分组。"""
+
+        def _query(session: scoped_session):
+            stmt = (
+                select(ChatSession)
+                .where(ChatSession.agent_id == agent_id)  # type: ignore
+                .where(ChatSession.user_id == user_id)
+                .where(ChatSession.title.isnot(None))
+                .order_by(ChatSession.update_time.desc())
+                .limit(30)
+            )
+            chat_sessions = session.execute(stmt).scalars().all()
+            if not chat_sessions:
+                return {}
+
+            groups = defaultdict(list)
+            today = date.today()
+            for chat_session in chat_sessions:
+                item = ChatSessionVO(
+                    session_id=chat_session.session_id,
+                    title=chat_session.title,
+                    update_time=chat_session.update_time,
+                )
+                days = abs((today - item.update_time.date()).days)
+                if days == 0:
+                    key = TODAY
+                elif days <= 30:
+                    key = LAST_30_DAYS
+                elif days <= 365:
+                    key = LAST_YEAR
+                else:
+                    key = MORE_THAN_YEAR
+                groups[key].append(item)
+
+            order = [MORE_THAN_YEAR, LAST_YEAR, LAST_30_DAYS, TODAY]
+            return {key: groups[key] for key in order if key in groups}
+
+        return self._execute(_query)
+
+    def delete_history_session(
+        self,
+        agent_id: int,
+        user_id: int,
+        session_id: str,
+    ):
+        """物理删除指定历史会话。"""
+
+        def _delete(session: scoped_session):
+            stmt = (
+                delete(ChatSession)
+                .where(ChatSession.agent_id == agent_id)  # type: ignore
+                .where(ChatSession.user_id == user_id)
+                .where(ChatSession.session_id == session_id)
+            )
+            result = session.execute(stmt)
+            return (
+                SUCCESS_MESSAGE
+                if result.rowcount > 0
+                else NO_CHANGE_MESSAGE
+            )
+
+        return self._execute(_delete)
+
+    def update_history_session(
+        self,
+        agent_id: int,
+        user_id: int,
+        session_id: str,
+        title: str,
+    ):
+        """更新指定历史会话标题。"""
+
+        def _update(session: scoped_session):
+            stmt = (
+                update(ChatSession)
+                .where(ChatSession.agent_id == agent_id)  # type: ignore
+                .where(ChatSession.user_id == user_id)
+                .where(ChatSession.session_id == session_id)
+                .values(title=title[:100])
+            )
+            result = session.execute(stmt)
+            return (
+                SUCCESS_MESSAGE
+                if result.rowcount > 0
+                else NO_CHANGE_MESSAGE
+            )
+
+        return self._execute(_update)
 
 
 # 全局 ChatSessionDAO 实例

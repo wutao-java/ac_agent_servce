@@ -1,4 +1,5 @@
 from agent.tianji.node.BaseNodeAgent import BaseNodeAgent
+from agent.tianji.tools import pre_place_order
 
 
 class BuyAgent(BaseNodeAgent):
@@ -30,3 +31,6 @@ class BuyAgent(BaseNodeAgent):
 
     def system_prompt(self) -> str:
         return self.system_prompt_str
+
+    def tools(self):
+        return [pre_place_order]
