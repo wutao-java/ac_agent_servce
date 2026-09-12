@@ -1,3 +1,5 @@
+"""AgentCenter 服务启动入口。"""
+
 import asyncio
 import selectors
 import uvicorn

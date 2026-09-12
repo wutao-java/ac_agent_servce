@@ -1,8 +1,9 @@
+"""加载 YAML 与环境变量，提供统一的应用配置访问能力。"""
+
 from typing import Dict, Any
 import os
 from dotenv import load_dotenv
 from util import YamlLoader, get_project_root
-from common import *
 
 
 load_dotenv(dotenv_path=get_project_root().parent / ".env")
@@ -98,7 +99,3 @@ class ConfigManager:
 # ---------------- 全局配置管理器实例 ----------------
 config_manager = ConfigManager()
 config_manager.load_config()
-
-if __name__ == "__main__":
-    print(config_manager.get(SERVER_PORT)) # 输出：18089
-    print(config_manager.get(SERVER_HOST)) # 输出：0.0.0.0

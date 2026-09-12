@@ -1,5 +1,9 @@
+"""管理 LangGraph 检查点使用的异步 PostgreSQL 连接池。"""
+
 from psycopg_pool import AsyncConnectionPool
-from config import config_manager
+from psycopg.rows import dict_row
+
+from config.ConfigManager import config_manager
 from common import *
 
 # ---------------- 异步 PostgreSQL 连接池（懒加载单例） ----------------
@@ -24,6 +28,11 @@ async def get_async_pg_pool() -> AsyncConnectionPool:
             config_manager.get(AI_AGENT_CHECKPOINTER_POSTGRES_URL),  # 数据库连接 URL
             min_size=config_manager.get(AI_AGENT_CHECKPOINTER_POSTGRES_MIN),  # 最小连接数
             max_size=config_manager.get(AI_AGENT_CHECKPOINTER_POSTGRES_MAX),  # 最大连接数
+            kwargs={
+                "autocommit": True,
+                "prepare_threshold": 0,
+                "row_factory": dict_row,
+            },
             open=False  # 构造时不自动打开连接池
         )
         await _async_pg_pool.open()  # 手动打开连接池，建立实际连接

@@ -1,3 +1,5 @@
+"""封装 Nacos 配置中心和服务发现客户端。"""
+
 from nacos import NacosClient
 from config import config_manager
 from common import *
@@ -13,6 +15,8 @@ class NacosConfig:
     """
 
     def __init__(self):
+        """读取连接配置并创建配置中心与注册中心客户端。"""
+
         # ---------------- Nacos 配置 ----------------
         self.__server_addr = config_manager.get(NACOS_SERVER_ADDR)           # Nacos 服务地址
         self.__username = config_manager.get(NACOS_USERNAME, "nacos")       # Nacos 用户名

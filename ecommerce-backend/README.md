@@ -58,6 +58,6 @@ API 文档：
 | 环境变量 | 说明 |
 | --- | --- |
 | `AGENT_SERVICE_BASE_URL` | Agent 服务基地址，默认 `http://host.docker.internal:8000` |
-| `AGENT_SERVICE_AUTH_TOKEN` | Agent 调用受保护电商 API 时使用的共享服务令牌 |
+| `AGENT_SERVICE_AUTH_TOKEN` | 电商后端与 Agent 双向调用使用的共享服务令牌 |
 
-Agent 调用受保护业务 API 时还必须携带 `X-Agent-User-Id`，由后端执行用户归属校验。管理员审批决定不能由 Agent 服务身份直接执行。
+电商后端调用 Agent 时会携带 `X-Agent-Service-Token`。Agent 调用受保护业务 API 时还必须携带同一服务令牌和 `X-Agent-User-Id`，由后端执行用户归属校验。管理员审批决定不能由 Agent 服务身份直接执行。

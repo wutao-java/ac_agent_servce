@@ -1,7 +1,6 @@
+"""配置基础设施包，对外提供配置管理器和全局日志器。"""
+
 from .ConfigManager import config_manager
 from .Logger import logger
-from .ID import get_id
-from .DB import Base, SessionLocal
-from .ConnectionPool import *
-from .RedisConfig import redis_config
-from .NacosConfig import nacos_config
+
+__all__ = ["config_manager", "logger"]

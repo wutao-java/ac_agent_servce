@@ -1,117 +1,73 @@
-from fastapi import FastAPI, Request
-from starlette.responses import PlainTextResponse
-from web.router import *
-from agent import AGENTS
-from config import get_async_pg_pool, close_async_pg_pool, logger, nacos_config, config_manager
-from common import *
+"""创建 FastAPI 应用并注册生命周期、系统接口和业务路由。"""
 
-# ========================= 创建 FastAPI 实例 =========================
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+from agent import xiaozhe_agent
+from config import logger
+from web.router import chat_router
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """在应用关闭时释放 Agent 持有的外部资源。"""
+
+    yield
+    await xiaozhe_agent.close()
+
+
 app = FastAPI(
-    title="Agent Center Web Server",
-    description="黑马程序员智能体中心"
+    title="Xiaozhe Ecommerce Agent",
+    description="小哲电商专属智能客服",
+    lifespan=lifespan,
 )
 
 
-# ========================= 异常处理 =========================
-def system_exception_handler(req: Request, exc: Exception):
-    """
-    全局异常处理函数，将异常转换为 500 响应
-    """
-    return PlainTextResponse(
-        content=str(exc),
-        status_code=500
-    )
+@app.exception_handler(Exception)
+async def system_exception_handler(_: Request, exc: Exception):
+    """记录未处理异常并返回统一的服务端错误响应。"""
+
+    logger.exception("未处理的服务异常", exc_info=exc)
+    return JSONResponse(status_code=500, content={"detail": "服务内部错误"})
 
 
-# 添加全局异常处理器
-app.add_exception_handler(Exception, system_exception_handler)
+@app.get("/health", tags=["system"])
+async def health():
+    """返回不依赖外部服务的进程健康状态。"""
 
-# ========================= Nacos 注册与注销 =========================
-def register_service():
-    """
-    注册智能体中心服务到 Nacos 服务发现
-    """
-    # 获取 Nacos 注册客户端
-    client = nacos_config.get_discovery_client()
-    # 服务 IP
-    ip = nacos_config.get_discovery_ip()
-    # 服务名称
-    service_name = nacos_config.get_discovery_name()
-    # 服务端口
-    port = int(config_manager.get(SERVER_PORT))
-    # 分组名称
-    group_name = nacos_config.get_discovery_group()
-
-    # 将实例注册到 Nacos
-    result = client.add_naming_instance(
-        service_name=service_name,
-        ip=ip,
-        port=port,
-        group_name=group_name,
-        heartbeat_interval=10  # 心跳间隔 10 秒
-    )
-    logger.info(f"✅ Registered {service_name} to Nacos: {result}")
-    return result
+    return {"status": "ok"}
 
 
-def deregister_service():
-    """
-    注销智能体中心服务
-    """
-    ip = nacos_config.get_discovery_ip()
-    service_name = nacos_config.get_discovery_name()
-    port = int(config_manager.get(SERVER_PORT))
+@app.get("/capabilities", tags=["system"])
+async def capabilities():
+    """声明当前 Agent 已开放及尚未开放的能力。"""
 
-    # 从 Nacos 注销实例
-    result = nacos_config.get_discovery_client().remove_naming_instance(
-        service_name, ip, port
-    )
-    logger.info(f"🧹 Deregistered {service_name} from Nacos")
-    return result
-
-# ========================= 启动事件 =========================
-async def startup():
-    """
-    启动 web 服务时执行：
-    - 初始化所有 Agent
-    """
-
-    # 初始化异步数据库连接池
-    await get_async_pg_pool()
-
-    # 初始化所有 Agent
-    for agent in AGENTS.values():
-        await agent.init()
-
-    # 注册服务
-    register_service()
-
-# ========================= 关闭事件 =========================
-async def shutdown():
-    """
-    停止 web 服务时执行：
-    - 销毁所有 Agent
-    """
-
-    # 关闭数据库连接池
-    await close_async_pg_pool()
-
-    # 销毁所有 Agent
-    for agent in AGENTS.values():
-        await agent.destroy()
-
-    # 注销服务
-    deregister_service()
-
-# ========================= 事件注册 =========================
-# 启动事件：初始化数据库、Agents、注册服务
-app.add_event_handler("startup", startup)
-# 关闭事件：关闭资源、注销服务
-app.add_event_handler("shutdown", shutdown)
+    return {
+        "schema_version": "agent_capabilities_v1",
+        "agent": {"name": "xiaozhe-ecommerce-agent", "version": "1.0.0"},
+        "endpoints": {
+            "health": True,
+            "chat": True,
+            "chat_resume": True,
+            "trace": False,
+            "eval_run": False,
+        },
+        "features": {
+            "chat": True,
+            "tool_calling": True,
+            "realtime_business_facts": True,
+            "runtime_context": True,
+            "checkpoint": True,
+            "human_approval": False,
+        },
+        "disabled_reasons": {
+            "human_approval": "高风险写操作工作流尚未启用",
+            "trace": "当前版本未开放运行轨迹接口",
+            "eval_run": "当前版本未开放在线评测接口",
+        },
+    }
 
 
-# ========================= 路由注册 =========================
-# 将各个子路由模块挂载到不同前缀下
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(session_router, prefix="/session", tags=["session"])
-app.include_router(chat_router, prefix="/chat", tags=["chat"])
+app.include_router(chat_router)

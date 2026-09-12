@@ -1,3 +1,5 @@
+"""提供带默认值和必填键校验的 YAML 配置加载能力。"""
+
 import yaml
 from pathlib import Path
 from typing import Any, Dict, Optional

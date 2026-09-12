@@ -2,7 +2,7 @@
 
 小哲电商与 Agent Center 的统一代码仓库。电商前端、电商后端和 Agent Center 保持独立构建与部署，通过 HTTP API 协作。
 
-> 当前状态：电商前后端已经完成拆分并可独立运行；现有 Agent Center 仍使用天机课程协议，尚未实现小哲电商客服所需的 Agent 接口。
+> 当前状态：电商前后端与小哲电商专属 Agent 已完成基础协议适配；高风险写操作和人工确认工作流尚未开放。
 
 ## 系统架构
 
@@ -11,8 +11,8 @@ flowchart LR
     U[商城用户] --> FE[电商前端<br/>React + Nginx]
     FE -->|/api| BE[电商后端<br/>Spring Boot]
     BE --> DB[(MySQL)]
-    BE -.->|/chat、/chat/resume<br/>待适配| AC[Agent Center<br/>FastAPI]
-    DU[Agent 调试 UI] -.-> AC
+    BE -->|/chat、/chat/resume| AC[Agent Center<br/>FastAPI]
+    DU[Agent 调试 UI] -.->|公开能力与后续调试接口| AC
     DU -.-> BE
 ```
 
@@ -22,7 +22,7 @@ flowchart LR
 
 | 目录 | 职责 | 默认端口 | 文档 |
 | --- | --- | --- | --- |
-| `agent-center/` | Python/FastAPI Agent 服务 | `18089` | [Agent Center](agent-center/README.md) |
+| `agent-center/` | Python/FastAPI Agent 服务 | `8000` | [Agent Center](agent-center/README.md) |
 | `ecommerce-backend/` | Spring Boot 电商 API | `8081` | [电商后端](ecommerce-backend/README.md) |
 | `ecommerce-frontend/` | 商城前台与管理后台 | `5174` | [电商前端](ecommerce-frontend/README.md) |
 | `agent-debug-ui/` | Agent 调试、轨迹与评测界面 | `5173` | [调试 UI](agent-debug-ui/README.md) |
@@ -89,7 +89,8 @@ npm run dev
 - `MYSQL_*`：电商 MySQL 配置。
 - `ECOMMERCE_*_PORT`：电商前后端宿主机端口。
 - `AGENT_SERVICE_*`：电商后端与未来小哲 Agent 的服务配置。
-- `AGENT_CENTER_*`：Agent Center 的数据库、Redis、JWT、模型服务、PostgreSQL 和 Nacos 配置。
+- `AGENT_CENTER_*`：Agent Center 的模型服务和可选 PostgreSQL Checkpointer 配置。
+- `ECOMMERCE_BACKEND_BASE_URL`：Agent 直接调用电商后端 API 的基地址。
 
 本地 `.env` 已被 Git 忽略。禁止提交真实密码、API Key、JWT 私钥或服务令牌。
 
@@ -97,20 +98,19 @@ npm run dev
 
 | 项目 | 命令 | 当前基线 |
 | --- | --- | --- |
-| Agent Center | `conda run -n ac_env_3135 python -m unittest discover -s tests -v` | 21 个测试通过 |
+| Agent Center | `conda run -n ac_env_3135 python -m unittest discover -s tests -v` | 电商契约、客户端和 Agent 单元测试通过 |
 | 电商后端 | `mvn test` | 构建通过，暂未提供 Java 测试用例 |
 | 电商前端 | `npm ci && npm run build` | TypeScript/Vite 构建通过 |
 | Agent 调试 UI | `npm ci && npm run build` | TypeScript/Vite 构建通过 |
 
 ## Agent 集成边界
 
-电商后端当前期望 Agent 提供普通 JSON 接口 `/chat` 和 `/chat/resume`。现有 Agent Center 的 `/chat` 使用另一套请求模型并返回 SSE，因此二者暂时不兼容。
+电商后端与 Agent Center 已统一使用普通 JSON `/chat` 和 `/chat/resume`。双向调用通过 `AGENT_SERVICE_AUTH_TOKEN` 校验，用户身份由电商后端构造可信 Runtime Context。
 
-后续实现小哲 Agent 时，需要同时确定：
+后续版本需要补充：
 
-1. 商城客服聊天与人工确认恢复协议。
-2. Agent 调用电商 API 时使用的 `X-Agent-Service-Token` 和 `X-Agent-User-Id` 请求头。
-3. 会话、工作流、审批和失败降级策略。
-4. 调试 UI 所需的能力、轨迹、评测和反馈接口。
+1. 退款、退货、取消订单等高风险写操作和幂等策略。
+2. `/chat/resume` 对应的人工确认工作流。
+3. 调试 UI 所需的轨迹、评测和反馈接口。
 
-接口未接通期间，商城客服入口会使用后端已有的降级响应，其他电商功能不受影响。
+Agent 不可用时，商城客服入口仍使用电商后端已有的降级响应，其他电商功能不受影响。

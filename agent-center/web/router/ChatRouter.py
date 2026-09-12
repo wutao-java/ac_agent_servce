@@ -1,85 +1,47 @@
-from typing import AsyncIterable
+"""提供受服务令牌保护的客服对话与工作流恢复接口。"""
 
-from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+import hmac
+from typing import Annotated
 
-from agent.BaseAgent import make_sse_event  # SSE 事件格式化工具
-from config import logger
-from agent import AGENTS  # 全局智能体实例字典
+from fastapi import APIRouter, Depends, Header, HTTPException
 
-# ========================= 创建路由对象 =========================
-chat_router = APIRouter()
-
-# ========================= 请求体模型 =========================
-class ChatRequest(BaseModel):
-    """
-    用户发送给智能体的请求体
-    """
-    question: str      # 用户提出的问题
-    sessionId: str     # 会话ID，用于关联上下文
-    userToken: str     # 用户身份token，用于调用业务系统接口
-    agentId: int = 1001  # 智能体ID，默认1001
-
-# ========================= SSE 错误流 =========================
-async def error_stream(message: str) -> AsyncIterable[str]:
-    """
-    异步生成错误消息的 SSE 流
-    """
-    yield make_sse_event(404, message)  # 将错误信息包装成 SSE 格式
-
-# ========================= SSE 响应封装 =========================
-def stream(data: AsyncIterable[str]) -> StreamingResponse:
-    """
-    将异步迭代对象封装为 StreamingResponse，返回 SSE 流
-    """
-    return StreamingResponse(
-        data,
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache"}  # 禁止缓存
-    )
-
-# ========================= 流式对话接口 =========================
-@chat_router.post("")
-async def chat(req: ChatRequest):
-    """
-    用户发起流式对话：
-    - 从请求中获取 question, sessionId, agentId, userToken
-    - 获取对应 agent 对象
-    - 返回 agent 执行结果的 SSE 流
-    """
-    logger.debug(f"【ChatRouter】收到请求：question = {req.question}, sessionId = {req.sessionId}, agentId = {req.agentId}")
-
-    # 根据 agentId 获取智能体实例
-    agent = AGENTS.get(req.agentId, None)
-    if agent is None:
-        error_msg = f"Agent not found (agentId={req.agentId})"
-        return stream(error_stream(error_msg))  # 返回错误 SSE 流
-
-    # 返回智能体生成的流式 SSE
-    return stream(agent.execute(req.question, req.sessionId, req.userToken))
+from agent.xiaozhe import xiaozhe_agent
+from agent.xiaozhe.models import ChatRequest, ChatResponse, ResumeRequest, ResumeResponse
+from common import ECOMMERCE_SERVICE_TOKEN
+from config import config_manager
 
 
-# ========================= 停止会话接口 =========================
-@chat_router.post("/stop")
-def stop(session_id: str, agent_id: int):
-    """
-    停止指定 session 的流式输出
-    - session_id: 会话ID
-    - agent_id: 智能体ID
-    """
-    logger.debug(
-        "【ChatRouter】收到停止请求：sessionId = %s, agentId = %s",
-        session_id,
-        agent_id,
-    )
+chat_router = APIRouter(prefix="/chat", tags=["chat"])
 
-    agent = AGENTS.get(agent_id, None)
-    if agent is None:
-        return {
-            "status": "ok",
-            "message": f"Agent not found (agentId={agent_id})",
-        }
 
-    agent.stop(session_id)
-    return {"status": "ok"}
+def require_service_token(
+    x_agent_service_token: Annotated[str | None, Header()] = None,
+) -> None:
+    """校验电商后端传入的共享服务令牌。"""
+
+    expected = config_manager.get(ECOMMERCE_SERVICE_TOKEN)
+    if not expected:
+        raise HTTPException(status_code=503, detail="Agent 服务鉴权未配置")
+    # 使用恒定时间比较，降低令牌比较过程泄露时序信息的风险。
+    if not x_agent_service_token or not hmac.compare_digest(x_agent_service_token, expected):
+        raise HTTPException(status_code=401, detail="Agent 服务身份校验失败")
+
+
+@chat_router.post("", response_model=ChatResponse)
+async def chat(
+    request: ChatRequest,
+    _: Annotated[None, Depends(require_service_token)],
+):
+    """接收电商后端请求并执行一轮客服对话。"""
+
+    return await xiaozhe_agent.chat(request)
+
+
+@chat_router.post("/resume", response_model=ResumeResponse)
+async def resume(
+    request: ResumeRequest,
+    _: Annotated[None, Depends(require_service_token)],
+):
+    """接收工作流恢复请求并返回当前处理结果。"""
+
+    return await xiaozhe_agent.resume(request)

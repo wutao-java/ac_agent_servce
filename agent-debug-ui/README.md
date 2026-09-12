@@ -40,4 +40,6 @@ npm run build
 | `POST` | `/eval/run` | 执行评测 |
 | `POST` | `/feedback/submit` | 提交反馈 |
 
-当前 `agent-center` 尚未完整提供这些接口，因此调试 UI 主要用于后续小哲 Agent 的开发验收。
+当前 `agent-center` 已提供 `/capabilities`、`/chat` 和 `/chat/resume`；轨迹、评测和反馈接口仍用于后续开发验收。
+
+`/chat` 和 `/chat/resume` 仅接受携带服务令牌的后端调用。浏览器调试 UI 不保存该令牌；需要调试真实对话时，应通过电商后端代理或使用受控的服务端测试客户端。

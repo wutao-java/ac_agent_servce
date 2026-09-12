@@ -7,6 +7,8 @@ public class CustomerServiceAgentProperties {
 
     private String baseUrl = "http://host.docker.internal:8000";
 
+    private String authToken;
+
     private int connectTimeoutMs = 2000;
 
     private int readTimeoutMs = 15000;
@@ -17,6 +19,14 @@ public class CustomerServiceAgentProperties {
 
     public void setBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
+    }
+
+    public String getAuthToken() {
+        return authToken;
+    }
+
+    public void setAuthToken(String authToken) {
+        this.authToken = authToken;
     }
 
     public int getConnectTimeoutMs() {

@@ -29,7 +29,7 @@ management:
 agent:
   service:
     base-url: ${AGENT_SERVICE_BASE_URL:http://host.docker.internal:8000}
-    # 生产环境必须显式配置；空值时 Agent 服务身份不会被认证，高风险写接口默认拒绝。
+    # 电商后端与 Agent 双向调用共用该服务令牌，生产环境必须显式配置。
     auth-token: ${AGENT_SERVICE_AUTH_TOKEN:}
     connect-timeout-ms: 2000
     read-timeout-ms: 45000

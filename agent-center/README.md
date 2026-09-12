@@ -1,76 +1,58 @@
-# Agent Center
+# Xiaozhe Ecommerce Agent
 
-基于 FastAPI 和 LangGraph 的 Agent 服务。当前实现面向天机课程业务，尚未实现小哲电商客服协议。
+面向小哲电商的 FastAPI + LangGraph 专属客服 Agent。电商后端负责登录态、用户身份和业务数据归属校验，Agent 仅通过受保护的 HTTP API 查询业务事实，不直接访问电商数据库。
 
-## 技术栈
+## 当前能力
 
-- Python `3.13.5`
-- FastAPI + Uvicorn
-- LangChain + LangGraph
-- MySQL、Redis、PostgreSQL Checkpointer
-- Nacos 服务发现
+- 商品、价格、库存和活动查询
+- 当前用户订单与物流查询
+- 用户偏好、优惠券、FAQ 和售后规则查询
+- LangGraph 会话记忆；配置 PostgreSQL 时持久化，否则仅保存在当前进程
+- 电商后端与 Agent 双向服务令牌校验
 
-依赖版本以 `environment.yml` 为准。
+退款、退货、取消订单等写操作和人工确认恢复工作流尚未开放。`/chat/resume` 已提供稳定契约，但在没有待恢复工作流时返回 `not_found`。
 
 ## 配置
 
-服务启动时会读取当前目录的 `application.yml`，并自动加载仓库根目录的 `.env`。以下环境变量需要按实际环境配置：
+服务读取 `application.yml`，并加载仓库根目录的 `.env`。
 
 | 环境变量 | 用途 |
 | --- | --- |
-| `AGENT_CENTER_DB_URL` | Agent Center MySQL SQLAlchemy URL |
-| `AGENT_CENTER_REDIS_HOST`、`AGENT_CENTER_REDIS_PORT`、`AGENT_CENTER_REDIS_PASSWORD` | Redis 连接配置 |
-| `AGENT_CENTER_JWT_PRIVATE_KEY`、`AGENT_CENTER_JWT_PUBLIC_KEY` | JWT Base64 密钥 |
 | `AGENT_CENTER_AI_API_KEY` | 模型服务 API Key |
-| `AGENT_CENTER_POSTGRES_URL` | LangGraph Checkpointer PostgreSQL URL |
-| `AGENT_CENTER_NACOS_*` | Nacos 地址、认证和服务注册 IP |
+| `AGENT_SERVICE_AUTH_TOKEN` | 电商后端与 Agent 双向调用的共享服务令牌 |
+| `ECOMMERCE_BACKEND_BASE_URL` | 电商后端地址，默认 `http://127.0.0.1:8081` |
+| `AGENT_CENTER_POSTGRES_URL` | 可选的 LangGraph Checkpointer PostgreSQL URL |
 
-`application.yml` 当前配置的服务端口为 `18089`。启动前确认 `server.host` 是本机可绑定的地址。
+禁止把真实令牌和 API Key 提交到仓库。
 
-## 创建环境
+## 启动
 
 ```powershell
 conda env create -f environment.yml
 conda activate ac_env_3135
-```
-
-## 启动
-
-启动前确保 MySQL、Redis、PostgreSQL 和 Nacos 可访问，并已填写仓库根目录 `.env`。
-
-```powershell
 Set-Location agent-center
-conda run -n ac_env_3135 python main.py
+python main.py
 ```
 
-## 当前接口
+服务默认监听 `0.0.0.0:8000`。
+
+## 接口
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `POST` | `/auth/token` | 使用应用凭据获取 JWT |
-| `POST` | `/chat` | 发起 SSE 流式 Agent 对话 |
-| `POST` | `/chat/stop` | 停止指定会话 |
-| `POST` | `/session` | 创建会话 |
-| `GET` | `/session/hot` | 查询指定 Agent 的热门示例 |
-| `GET` | `/session/history` | 查询历史会话 |
-| `PUT` | `/session/history` | 更新会话标题 |
-| `DELETE` | `/session/history` | 删除会话 |
-| `GET` | `/session/{agent_id}/{user_id}/{session_id}` | 查询指定会话详情 |
+| `GET` | `/health` | 进程健康检查 |
+| `GET` | `/capabilities` | 当前 Agent 能力声明 |
+| `POST` | `/chat` | 电商客服对话，返回普通 JSON |
+| `POST` | `/chat/resume` | 工作流恢复契约；当前未启用写操作 |
 
-FastAPI 自动文档默认位于 `/docs`。
+`POST /chat` 和 `POST /chat/resume` 必须携带 `X-Agent-Service-Token`。电商后端调用 Agent 时会自动发送该请求头。
 
 ## 测试
 
-现有测试使用标准库 `unittest`。当测试环境没有运行 Nacos 时，可临时关闭 Nacos 认证，避免客户端在模块导入阶段请求认证接口：
+测试不需要运行 MySQL、Redis、Nacos 或 PostgreSQL：
 
 ```powershell
-$env:AGENT_CENTER_NACOS_USERNAME = ""
-$env:AGENT_CENTER_NACOS_PASSWORD = ""
 conda run -n ac_env_3135 python -m unittest discover -s tests -v
 ```
 
-当前基线为 21 个测试通过。
-
-## 小哲电商适配状态
-
-不要将当前 `/chat` 直接配置给电商后端：当前接口接收 `question/sessionId/userToken/agentId` 并返回 SSE，而电商后端期望客服上下文请求和普通 JSON 响应。后续应新增独立的小哲 Agent 协议，避免破坏已有天机课程调用方。
+Nacos 注册代码暂时隔离在 `config/NacosConfig.py`，不会在启动时加载，待网关接入方案确定后再启用或替换。

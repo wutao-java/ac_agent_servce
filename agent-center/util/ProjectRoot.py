@@ -1,3 +1,5 @@
+"""提供项目根目录定位及 Python 导入路径初始化工具。"""
+
 import sys
 from pathlib import Path
 from functools import lru_cache
