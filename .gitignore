@@ -1,2 +1,30 @@
-.idea
-logs
+.idea/
+.vscode/
+
+# Python
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/*.py[cod]
+
+# Java / Maven
+**/target/
+
+# Node
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+agent-debug-ui/vite.config.js
+agent-debug-ui/vite.config.d.ts
+
+# Runtime output
+**/logs/
+**/*.log
+
+# Local configuration
+.env
+**/.env
+.env.*
+**/.env.*
+!.env.example
+!**/.env.example

@@ -1,0 +1,11 @@
+target
+node_modules
+dist
+.env
+.venv
+.chroma
+logs
+*.log
+.DS_Store
+.idea
+.vscode
