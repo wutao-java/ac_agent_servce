@@ -31,10 +31,28 @@
 conda env create -f environment.yml
 conda activate ac_env_3135
 Set-Location agent-center
-python main.py
+python -m backend.main
 ```
 
-服务默认监听 `0.0.0.0:8000`。
+服务默认监听 `127.0.0.1:8000`。
+
+## 目录结构
+
+当前服务沿用课程后端的分层方式，并在对应目录中保留商城集成、工具调用和会话状态能力：
+
+```text
+backend/
+  api/             # HTTP 路由和请求响应模型
+  agents/          # 客服 Agent 编排
+  config/          # 应用配置
+  integrations/    # 电商后端客户端
+  models/          # 大模型客户端
+  observability/   # 日志与运行观测
+  state/           # LangGraph Checkpointer
+  tools/           # 只读业务工具和运行时上下文
+  workflows/       # 工作流恢复契约
+  main.py          # FastAPI 应用入口
+```
 
 ## 接口
 
@@ -55,4 +73,4 @@ python main.py
 conda run -n ac_env_3135 python -m unittest discover -s tests -v
 ```
 
-Nacos 注册代码暂时隔离在 `config/NacosConfig.py`，不会在启动时加载，待网关接入方案确定后再启用或替换。
+Nacos 注册代码暂时隔离在 `backend/config/nacos.py`，不会在启动时加载，待网关接入方案确定后再启用或替换。

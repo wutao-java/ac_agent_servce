@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 os.environ.setdefault("AGENT_SERVICE_AUTH_TOKEN", "test-service-token")
 
-from web import app
+from backend.main import app
 
 
 class EcommerceContractTest(unittest.TestCase):
@@ -17,7 +17,7 @@ class EcommerceContractTest(unittest.TestCase):
     def setUp(self):
         """为每个用例创建隔离的 Agent 模拟对象和测试客户端。"""
 
-        self.agent_patcher = patch("web.router.ChatRouter.xiaozhe_agent")
+        self.agent_patcher = patch("backend.api.routes.xiaozhe_agent")
         self.agent = self.agent_patcher.start()
         self.client = TestClient(app)
 

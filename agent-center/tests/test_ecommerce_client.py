@@ -4,7 +4,7 @@ import unittest
 
 import httpx
 
-from agent.xiaozhe.client import EcommerceApiError, EcommerceClient
+from backend.integrations.ecommerce_client import EcommerceApiError, EcommerceClient
 
 
 class EcommerceClientTest(unittest.IsolatedAsyncioTestCase):

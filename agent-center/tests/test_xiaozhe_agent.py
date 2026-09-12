@@ -4,8 +4,8 @@ import unittest
 
 from langchain_core.messages import AIMessage
 
-from agent.xiaozhe.models import ChatRequest
-from agent.xiaozhe.service import XiaozheAgent
+from backend.agents.customer_service_agent import XiaozheAgent
+from backend.api.schemas import ChatRequest
 
 
 class StubGraph:

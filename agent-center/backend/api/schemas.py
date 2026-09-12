@@ -1,4 +1,4 @@
-"""定义小哲电商 Agent 对外接口的请求与响应模型。"""
+"""定义小哲电商 Agent 的 HTTP 请求与响应模型。"""
 
 from typing import Any, Literal
 
