@@ -53,7 +53,6 @@ class RouterAgent(BaseAgent):
         """
         # 检查会话记忆所需要的表是否存在
         await self.check_table()
-
         # 获取异步数据库连接池实例
         async_pg_pool = await get_async_pg_pool()
         # 创建checkpointer是用于实现会话记忆的

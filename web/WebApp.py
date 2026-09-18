@@ -2,7 +2,9 @@ from fastapi import FastAPI, Request
 from starlette.responses import PlainTextResponse
 from web.router import auth_router, session_router,chat_router
 from agent.Agents import AGENTS
-from config import get_async_pg_pool, close_async_pg_pool
+from config import close_async_pg_pool,nacos_config,config_manager,logger
+from common import *
+
 
 # ========================= 创建 FastAPI 实例 =========================
 app = FastAPI(
@@ -25,6 +27,42 @@ def system_exception_handler(req: Request, exc: Exception):
 # 添加全局异常处理器
 app.add_exception_handler(Exception, system_exception_handler)
 
+# ========================= Nacos 注册与注销 =========================
+def register_service():
+    """
+    注册智能体中心服务到 Nacos 服务发现
+    """
+    client = nacos_config.get_discovery_client()  # 获取 Nacos 注册客户端
+    ip = nacos_config.get_discovery_ip()  # 服务 IP
+    service_name = nacos_config.get_discovery_name()  # 服务名称
+    port = int(config_manager.get(SERVER_PORT))  # 服务端口
+    group_name = nacos_config.get_discovery_group()  # 分组名称
+
+    # 将实例注册到 Nacos
+    result = client.add_naming_instance(
+        service_name=service_name,
+        ip=ip,
+        port=port,
+        group_name=group_name,
+        heartbeat_interval=10  # 心跳间隔 10 秒
+    )
+    logger.info(f"✅ Registered {service_name} to Nacos: {result}")
+    return result
+
+def deregister_service():
+    """
+    注销智能体中心服务
+    """
+    ip = nacos_config.get_discovery_ip()
+    service_name = nacos_config.get_discovery_name()
+    port = int(config_manager.get(SERVER_PORT))
+
+    # 从 Nacos 注销实例
+    result = nacos_config.get_discovery_client().remove_naming_instance(
+        service_name, ip, port
+    )
+    logger.info(f"🧹 Deregistered {service_name} from Nacos")
+
 
 # ========================= 启动事件 =========================
 async def startup():
@@ -32,13 +70,13 @@ async def startup():
     启动 web 服务时执行：
     - 初始化所有 Agent
     """
-
+    # 初始化pg数据库连接池
     await close_async_pg_pool()
-
     # 初始化所有 Agent
     for agent in AGENTS.values():
         await agent.init()
-
+    # nacos服务注册
+    register_service()
 
 # ========================= 关闭事件 =========================
 async def shutdown():
@@ -46,11 +84,13 @@ async def shutdown():
     停止 web 服务时执行：
     - 销毁所有 Agent
     """
+    # 断开pg数据库连接池
     await close_async_pg_pool()
-
     # 销毁所有 Agent
     for agent in AGENTS.values():
         await agent.destroy()
+    # nacos服务销毁
+    deregister_service()
 
 
 # ========================= 事件注册 =========================
