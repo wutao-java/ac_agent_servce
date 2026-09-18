@@ -1,5 +1,6 @@
 from typing import Dict, Any
 import os
+from dotenv import load_dotenv
 from util import YamlLoader, get_project_root
 from common import *
 
@@ -39,6 +40,7 @@ class ConfigManager:
             dict: 加载后的配置字典
         """
         if self._config is None:
+            load_dotenv(get_project_root() / ".env", override=False, interpolate=False)
             self._config = YamlLoader.load(
                 file_path=get_project_root() / file_path,
                 default=default,

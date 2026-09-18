@@ -91,9 +91,16 @@ class JWTUtil:
 
 
 if __name__ == "__main__":
+    import os
+    from pathlib import Path
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False, interpolate=False)
     # 示例 Base64 公私钥
-    private_key_b64 = "MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBAKIIk0LxLhUHchzhJ8A607DYSeAgSrPSS5GPdh8vDJshIkgK9YBxEBcqv5km/xyHgpE45FsyQSB5/fXph/ywwgNumYTZUUyt3yi+ygvfZyvpwo4Cz6Jzwp5M2doiG7lKryv0MbIsM3Rs5KU0BOAsMiVVt5LdeM3SSb1lHaQj5zdNAgMBAAECgYACCmxoYTpv8110wnUwtTNc79LTKs6MczwwA7si62gtb/5kvLAydobgWjgT74TMN2MY/YfXijHkMDhXNFWNHi2WiyScGaN3+YesxFUoG5H/2hQAUcDzj1Rryh+gerkWdqoFbGu3d+v5kur+w36VTCD3qpHyADycM//UA7yKb+8i4QJBANQyPNwOUJabDlLjTd42GzvAZTE6gmPrOopsRnHW8TVIHkHXexCMQLQ4TTg6Ct5ShuSTAgYUGPQv3jxpLts+fcUCQQDDe22AtsqnKVaG2KYVYWFLnI3hYNw8wePepZbt/87MPgYtkEc5WjFF/QUlHwLcpc7YW6hrJYwMbZvOB7YVHrPpAkAlbQLs8R1nosuA9RRb2AEvpbxzVVWAGBIILhayp219r02e4UmUXphe8Ps1qo8WLUobcI5P0iWgk/zHfOnFw5zdAkEAh2o+PfbiRZAeT4VO7+qocq99nY3yougRiU+eUTpusA+bSf7zR+iRz5Dp+oAUBHOb6Ub9UVQOQyG+16eB2/mL2QJBAIMjhAu5kTZAWVDpuJ6AtDodscuZQs8EOCdU7hx+aJUMC4K1aeuwD9QhkOZtpA/V2BzgNcqWt5dfntU2ovQ0g1U="
-    public_key_b64 = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCiCJNC8S4VB3Ic4SfAOtOw2EngIEqz0kuRj3YfLwybISJICvWAcRAXKr+ZJv8ch4KROORbMkEgef316Yf8sMIDbpmE2VFMrd8ovsoL32cr6cKOAs+ic8KeTNnaIhu5Sq8r9DGyLDN0bOSlNATgLDIlVbeS3XjN0km9ZR2kI+c3TQIDAQAB"
+    private_key_b64 = os.getenv("JWT_PRIVATE_KEY")
+    public_key_b64 = os.getenv("JWT_PUBLIC_KEY")
+    if not private_key_b64 or not public_key_b64:
+        raise RuntimeError("JWT_PRIVATE_KEY 和 JWT_PUBLIC_KEY 未设置")
 
     # 生成 Token
     token = JWTUtil.create_token({"user_id": 123, "role": "admin"}, private_key_b64)
