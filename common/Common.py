@@ -11,6 +11,12 @@ INTENT_TO_AGENT = {
 # 业务系统网关的微服务名称
 GATEWAY_SERVICE_NAME = "gateway-service"
 
+# 网关来源校验
+GATEWAY_AUTH_ENABLED = "gateway.auth.enabled"
+GATEWAY_AUTH_HEADER = "gateway.auth.header"
+GATEWAY_AUTH_SECRET = "gateway.auth.secret"
+GATEWAY_AUTH_EXCLUDE_PATHS = "gateway.auth.exclude-paths"
+
 # ============================
 # server 配置
 # ============================

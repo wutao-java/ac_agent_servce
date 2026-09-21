@@ -35,6 +35,39 @@ nacos:
     namespace: f923fb34-cb0a-4c06-8fca-ad61ea61a3f0
     ip: 192.168.150.1
 
+gateway:
+  auth:
+    enabled: true
+    header: X-Gateway-Token
+    secret: ${AGENT_CENTER_GATEWAY_SECRET}
+    exclude-paths:
+      - /docs
+      - /redoc
+      - /openapi.json
+
+prompt:
+  route:
+    chat:
+      data-id: route-agent-system-message.txt
+  recommend:
+    chat:
+      data-id: recommend-agent-system-message.txt
+  buy:
+    chat:
+      data-id: buy-agent-system-message.txt
+  consult:
+    chat:
+      data-id: consult-agent-system-message.txt
+  knowledge:
+    chat:
+      data-id: knowledge-agent-system-message.txt
+  unknown:
+    chat:
+      data-id: unknown-agent-system-message.txt
+  text:
+    chat:
+      data-id: text-system-chat-message.txt
+
 ai:
   "1001":
     session:

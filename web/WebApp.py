@@ -1,7 +1,10 @@
+import hmac
+
 from fastapi import FastAPI, Request
-from starlette.responses import PlainTextResponse
+from starlette.responses import JSONResponse, PlainTextResponse
 from web.router import auth_router, session_router,chat_router
 from agent.Agents import AGENTS
+from agent.prompts import system_prompt_config
 from config import close_async_pg_pool,nacos_config,config_manager,logger
 from common import *
 
@@ -26,6 +29,50 @@ def system_exception_handler(req: Request, exc: Exception):
 
 # 添加全局异常处理器
 app.add_exception_handler(Exception, system_exception_handler)
+
+
+# ========================= 网关来源校验 =========================
+def _to_bool(value, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    return str(value).strip().lower() not in {"false", "0", "no", "off"}
+
+
+def _is_excluded_path(path: str, exclude_paths: list[str]) -> bool:
+    for exclude_path in exclude_paths:
+        normalized = exclude_path.rstrip("/")
+        if path == normalized or path.startswith(normalized + "/"):
+            return True
+    return False
+
+
+@app.middleware("http")
+async def gateway_auth_middleware(request: Request, call_next):
+    enabled = _to_bool(config_manager.get(GATEWAY_AUTH_ENABLED, True))
+    exclude_paths = config_manager.get(GATEWAY_AUTH_EXCLUDE_PATHS, []) or []
+    if not enabled or _is_excluded_path(request.url.path, exclude_paths):
+        return await call_next(request)
+
+    header_name = config_manager.get(GATEWAY_AUTH_HEADER, "X-Gateway-Token")
+    secret = config_manager.get(GATEWAY_AUTH_SECRET)
+    if not secret:
+        logger.error("网关来源校验密钥未配置: %s", GATEWAY_AUTH_SECRET)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Gateway auth secret is not configured"},
+        )
+
+    request_token = request.headers.get(header_name, "")
+    if not hmac.compare_digest(request_token, secret):
+        logger.warning("拒绝非网关来源请求: path=%s", request.url.path)
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Forbidden"},
+        )
+
+    return await call_next(request)
 
 # ========================= Nacos 注册与注销 =========================
 def register_service():
@@ -72,6 +119,8 @@ async def startup():
     """
     # 初始化pg数据库连接池
     await close_async_pg_pool()
+    # 初始化系统提示词配置与热更新线程
+    system_prompt_config.start()
     # 初始化所有 Agent
     for agent in AGENTS.values():
         await agent.init()

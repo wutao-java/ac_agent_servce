@@ -18,6 +18,37 @@ from util import HttpClientUtil, JsonUtil
 
 
 @tool
+def query_recommend_data(keyword: str, runtime: ToolRuntime):
+    """根据用户感兴趣的技术方向查询最多三门候选课程 ID。
+
+    Args:
+        keyword: 用户希望学习的技术方向，例如 Java、Python 或大数据。
+        runtime: 获取运行参数。
+    """
+    user_token = runtime.context.user_token
+    request_id = runtime.context.request_id
+    url = "http://127.0.0.1:10010/ss/courses/name"
+
+    response_data = HttpClientUtil.get(
+        url,
+        user_token,
+        params={"keyword": keyword},
+    ) or {}
+    course_ids = response_data.get("data") or []
+    if not isinstance(course_ids, list):
+        logger.error("推荐课程数据格式错误，url=%s, data=%s", url, course_ids)
+        return JsonUtil.to_str([])
+
+    logger.debug(
+        "【Tool】query_recommend_data url=%s, course_ids=%s, request_id=%s",
+        url,
+        course_ids,
+        request_id,
+    )
+    return JsonUtil.to_str(course_ids[:3])
+
+
+@tool
 def query_course_by_id(course_id, runtime: ToolRuntime):
     """
     根据课程 ID 查询课程数据，并将结果存储到 ToolResultHolder。

@@ -9,6 +9,13 @@ from web import app
 class SessionRouterTest(unittest.TestCase):
 
     def setUp(self):
+        self.env_patcher = patch.dict(
+            "os.environ",
+            {"AGENT_CENTER_GATEWAY_SECRET": "test-gateway-secret"},
+        )
+        self.env_patcher.start()
+        self.addCleanup(self.env_patcher.stop)
+        self.headers = {"X-Gateway-Token": "test-gateway-secret"}
         self.client = TestClient(app)
 
     @patch("web.router.SessionRouter.chat_session_dao.query_history_session")
@@ -17,6 +24,7 @@ class SessionRouterTest(unittest.TestCase):
 
         response = self.client.get(
             "/session/history",
+            headers=self.headers,
             params={"agent_id": 1001, "user_id": 1},
         )
 
@@ -34,6 +42,7 @@ class SessionRouterTest(unittest.TestCase):
 
         response = self.client.delete(
             "/session/history",
+            headers=self.headers,
             params={
                 "agent_id": 1001,
                 "user_id": 1,
@@ -52,6 +61,7 @@ class SessionRouterTest(unittest.TestCase):
 
         response = self.client.put(
             "/session/history",
+            headers=self.headers,
             params={
                 "agent_id": 1001,
                 "user_id": 1,

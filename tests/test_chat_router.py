@@ -13,10 +13,12 @@ class ChatRouterTest(unittest.TestCase):
         agent = Mock()
         agents.get.return_value = agent
 
-        response = TestClient(app).post(
-            "/chat/stop",
-            params={"session_id": "session-1", "agent_id": 1001},
-        )
+        with patch.dict("os.environ", {"AGENT_CENTER_GATEWAY_SECRET": "test-gateway-secret"}):
+            response = TestClient(app).post(
+                "/chat/stop",
+                headers={"X-Gateway-Token": "test-gateway-secret"},
+                params={"session_id": "session-1", "agent_id": 1001},
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
