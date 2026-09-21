@@ -230,6 +230,66 @@ class RouterAgentExecuteTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(events, [format_sse_data(STOP_EVENT)])
         self.assertTrue(stream.closed)
 
+    async def test_execute_skips_tool_result_after_stop(self):
+        class MessageStream:
+            def __init__(self):
+                self.events = iter([
+                    (
+                        (),
+                        (
+                            ToolMessage(
+                                content=JsonUtil.to_str({
+                                    "id": "course-1",
+                                    "name": "Java课程",
+                                    "price": 199.0,
+                                    "validDuration": 999,
+                                    "usePeople": "Java开发者",
+                                    "detail": "课程详情",
+                                }),
+                                tool_call_id="course-call",
+                                name="query_course_by_id",
+                            ),
+                            {"tags": []},
+                        ),
+                    ),
+                    ((), (AIMessage(content="不应输出"), {"tags": []})),
+                ])
+                self.closed = False
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                try:
+                    return next(self.events)
+                except StopIteration as exc:
+                    raise StopAsyncIteration from exc
+
+            async def aclose(self):
+                self.closed = True
+
+        stream = MessageStream()
+        agent = RouterAgent()
+        agent.graph = Mock()
+        agent.graph.astream.return_value = stream
+        agent.reset_stop = Mock()
+        agent.is_stop = Mock(side_effect=[False, True])
+
+        with unittest.mock.patch(
+            "agent.tianji.RouterAgent.chat_session_dao.update_title"
+        ):
+            events = [
+                event
+                async for event in agent.execute(
+                    question="停止测试",
+                    session_id="session-1",
+                    user_token="test-token",
+                )
+            ]
+
+        self.assertEqual(events, [format_sse_data(STOP_EVENT)])
+        self.assertTrue(stream.closed)
+
 
 class RouterAgentSessionTest(unittest.IsolatedAsyncioTestCase):
 

@@ -40,7 +40,7 @@ class BaseDAO:
             logger.exception("数据库事务执行失败，已回滚。错误详情：%s", e)
             raise  # 继续抛出异常，供外层处理
         finally:
-            session.close()  # 关闭会话，释放连接资源
+            SessionLocal.remove()  # 释放 scoped_session 绑定的会话和连接资源
 
     def _execute(self, func: Callable[[scoped_session], T]) -> T:
         """

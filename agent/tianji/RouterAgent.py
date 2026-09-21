@@ -170,10 +170,12 @@ class RouterAgent(BaseAgent):
             )
 
             tool_result = {}
+            stopped = False
 
             try:
                 async for node_info, (message, metadata) in res:
                     if self.is_stop(session_id):
+                        stopped = True
                         await res.aclose()
                         break
 
@@ -199,7 +201,7 @@ class RouterAgent(BaseAgent):
                 await res.aclose()
                 raise
 
-            if tool_result:
+            if tool_result and not stopped:
                 yield make_sse_event(1003, tool_result)
 
         except Exception as e:

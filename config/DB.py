@@ -15,6 +15,7 @@ engine = create_engine(
     max_overflow=config_manager.get(DB_MAX_OVERFLOW), # 超出池大小时允许的最大临时连接数
     pool_timeout=config_manager.get(DB_POOL_TIMEOUT), # 池中无可用连接时的最大等待时间（秒）
     pool_recycle=config_manager.get(DB_POOL_RECYCLE), # 连接回收时间（秒），避免连接过期
+    pool_pre_ping=True,                               # 借出连接前探活，避免复用失效连接
     echo=bool(config_manager.get(DB_ECHO))            # 是否在控制台输出 SQL 日志
 )
 
